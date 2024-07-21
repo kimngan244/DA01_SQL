@@ -62,7 +62,20 @@ select * from cte2
 where rank_per_month<=5
 
 ---5. Doanh thu tính đến thời điểm hiện tại trên mỗi danh mục
+with cte as 
+(SELECT 
+concat(extract(year FROM b.created_at),'-',extract(month FROM b.created_at),'-',extract(day FROM b.created_at)) as dates,
+a.category as product_categories, a.retail_price as total_revenue
+FROM bigquery-public-data.thelook_ecommerce.products a
+join bigquery-public-data.thelook_ecommerce.order_items b
+on a.id=b.id)
 
+select distinct product_categories,dates,
+sum(total_revenue) over(partition by product_categories order by dates) as revenue
+from cte
+where dates between '2022-1-15' and '2022-4-15'
+order by dates desc
+ 
 
 
 
