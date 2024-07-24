@@ -33,7 +33,53 @@ from cte2
 order by 1)
 select * from cte3
 
+  2) Cohort_customer
+ ---Có 181420 bản ghi
+---Check duplicate
+with cte as (select 
+row_number() over(partition by id,order_id, user_id,product_id order by created_at) as stt
+from bigquery-public-data.thelook_ecommerce.order_items)
+select * from cte
+where stt >1
 
+--- Customer_cohort
+with cte as
+(select user_id,
+min(created_at) over(partition by user_id) as first_purchase_date,
+created_at,
+sale_price
+from bigquery-public-data.thelook_ecommerce.order_items)
+
+, cte2 as (select 
+user_id, sale_price,
+format_date('%Y-%m',first_purchase_date) as cohort_date,
+created_at,
+((extract(year from created_at) - extract(year from first_purchase_date))*12 ) + (extract(month from created_at) - extract(month from first_purchase_date))+1 as index
+from cte)
+
+,cte3 as(select cohort_date,
+index,
+count(distinct user_id) as count,
+sum(sale_price) as revenue
+from cte2
+group by cohort_date, index)
+
+,cte4 as
+(select cohort_date,
+sum(case when index=1 then count else 0 end) as m1,
+sum(case when index=2 then count else 0 end) as m2,
+sum(case when index=3 then count else 0 end) as m3,
+sum(case when index=4 then count else 0 end) as m4
+from cte3
+group by cohort_date
+order by cohort_date)
+
+select cohort_date,
+round((100.00*(m1/m1)),2)||'%' as m1,
+round((100.00*(m2/m1)),2)||'%' as m2,
+round((100.00*(m3/m1)),2)||'%' as m3,
+round((100.00*(m4/m1)),2)||'%' as m4
+from cte4
 
 
 
